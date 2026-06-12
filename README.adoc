@@ -150,11 +150,6 @@ The site power sensors for grid, load, battery, and PV are also published via di
 
 Site autonomy and battery-related sensors such as inverter battery SoC are also marked `enabled_by_default: false`.
 
-You can use either:
-
-* automatic MQTT discovery in Home Assistant, or
-* the static example file at link:examples/homeassistant-mqtt.yaml[examples/homeassistant-mqtt.yaml]
-
 == As a client API
 
 See link:examples/client.go[Example]
