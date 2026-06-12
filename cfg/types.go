@@ -63,7 +63,7 @@ func NewDefaultConfig() *Configuration {
 		},
 		Symo: SymoConfig{
 			URL:                     "http://symo.ip.or.hostname",
-			Timeout:                 5,
+			Timeout:                 5 * time.Second,
 			Headers:                 []string{},
 			PowerFlowEnabled:        true,
 			ArchiveEnabled:          true,
@@ -77,7 +77,7 @@ func NewDefaultConfig() *Configuration {
 			BaseTopic:               "fronius-exporter",
 			ClientID:                "",
 			QueueSize:               16,
-			ReconnectInterval:       5,
+			ReconnectInterval:       5 * time.Second,
 			AvailabilityTopic:       "",
 			AvailabilityPayloadUp:   "online",
 			AvailabilityPayloadDown: "offline",
@@ -92,8 +92,8 @@ func NewDefaultConfig() *Configuration {
 			TLSInsecureSkipVerify:   false,
 		},
 		Poll: PollConfig{
-			Interval:     10,
-			FreshTimeout: 30,
+			Interval:     10 * time.Second,
+			FreshTimeout: 30 * time.Second,
 		},
 		BindAddr: ":8080",
 	}

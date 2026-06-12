@@ -46,7 +46,7 @@ func main() {
 		log.Fatal("All scrape endpoints are disabled. You need enable at least one endpoint.")
 	}
 
-	mqttPub, err = newMQTTPublisher(config.MQTT, config.Symo, config.Poll)
+	mqttPub, err = newMQTTPublisher(config.MQTT, config.Symo)
 	if err != nil {
 		log.WithError(err).Fatal("Cannot initialize MQTT publisher.")
 	}

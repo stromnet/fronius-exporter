@@ -177,10 +177,10 @@ func pollTarget(client *fronius.SymoClient, state *exporterState) {
 	wg := sync.WaitGroup{}
 	wg.Add(4)
 
-	pollPowerFlowData(client, state, &wg)
-	pollArchiveData(client, state, &wg)
-	pollInverterRealtimeData(client, state, &wg)
-	pollMeterRealtimeData(client, state, &wg)
+	go pollPowerFlowData(client, state, &wg)
+	go pollArchiveData(client, state, &wg)
+	go pollInverterRealtimeData(client, state, &wg)
+	go pollMeterRealtimeData(client, state, &wg)
 
 	wg.Wait()
 	scrapeDurationGauge.Set(time.Since(start).Seconds())

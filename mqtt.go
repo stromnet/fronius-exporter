@@ -67,7 +67,7 @@ type homeAssistantDiscoveryEntity struct {
 	EnabledByDefault  *bool
 }
 
-func newMQTTPublisher(config cfg.MQTTConfig, symoConfig cfg.SymoConfig, pollConfig cfg.PollConfig) (*mqttPublisher, error) {
+func newMQTTPublisher(config cfg.MQTTConfig, symoConfig cfg.SymoConfig) (*mqttPublisher, error) {
 	if config.Broker == "" {
 		if hasPartialMQTTConfig(config) {
 			return nil, fmt.Errorf("mqtt partial configuration: mqtt.broker is required when mqtt.username or mqtt.password is set")
