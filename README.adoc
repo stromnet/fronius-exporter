@@ -10,7 +10,7 @@ ifdef::env-github[]
 endif::[]
 
 = Fork info
-This is a fork of https://github.com/ccremer/fronius-exporter, with added support for MQTT & HomeAssistant integration.
+This is a fork of https://github.com/ccremer/fronius-exporter, with added support for MQTT & HomeAssistant integration. This has been implemented mostly by GPT 5.4.
 
 = Fronius Exporter
 
