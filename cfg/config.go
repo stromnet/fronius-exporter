@@ -46,13 +46,48 @@ func setupCliFlags(version string, fs *flag.FlagSet, config *Configuration) {
 	fs.Bool("symo.enable-archive", config.Symo.ArchiveEnabled, "Enable/disable scraping of archive data")
 	fs.Bool("symo.enable-inverter-realtime", config.Symo.InverterRealtimeEnabled, "Enable/disable scraping of inverter real time data")
 	fs.Bool("symo.enable-meter-realtime", config.Symo.MeterRealtimeEnabled, "Enable/disable scraping of meter real time data")
+	fs.String("mqtt.broker", config.MQTT.Broker, "MQTT broker URL, e.g. tcp://broker:1883. Leave empty to disable MQTT publishing.")
+	fs.String("mqtt.username", config.MQTT.Username, "Username for MQTT authentication.")
+	fs.String("mqtt.password", config.MQTT.Password, "Password for MQTT authentication.")
+	fs.String("mqtt.base-topic", config.MQTT.BaseTopic, "Base MQTT topic used for publishing updates.")
+	fs.String("mqtt.client-id", config.MQTT.ClientID, "MQTT client ID. Leave empty to auto-generate one.")
+	fs.Int("mqtt.queue-size", config.MQTT.QueueSize, "Size of the asynchronous MQTT publish queue.")
+	fs.Int64("mqtt.reconnect-interval", int64(config.MQTT.ReconnectInterval.Seconds()), "MQTT reconnect retry interval in seconds.")
+	fs.String("mqtt.availability-topic", config.MQTT.AvailabilityTopic, "MQTT availability topic for Home Assistant and LWT. Defaults to <mqtt.base-topic>/availability when empty.")
+	fs.String("mqtt.availability-payload-up", config.MQTT.AvailabilityPayloadUp, "MQTT payload published when exporter is online.")
+	fs.String("mqtt.availability-payload-down", config.MQTT.AvailabilityPayloadDown, "MQTT last-will payload published when exporter is offline.")
+	fs.Bool("mqtt.discovery-enabled", config.MQTT.DiscoveryEnabled, "Enable Home Assistant MQTT discovery publishing.")
+	fs.String("mqtt.discovery-prefix", config.MQTT.DiscoveryPrefix, "Home Assistant MQTT discovery prefix.")
+	fs.String("mqtt.discovery-device-name", config.MQTT.DiscoveryDeviceName, "Home Assistant device name for discovered entities.")
+	fs.String("mqtt.discovery-device-id", config.MQTT.DiscoveryDeviceID, "Home Assistant device identifier for discovered entities.")
+	fs.String("mqtt.tls-ca-file", config.MQTT.TLSCAFile, "CA certificate file for MQTT TLS.")
+	fs.String("mqtt.tls-cert-file", config.MQTT.TLSCertFile, "Client certificate file for MQTT TLS.")
+	fs.String("mqtt.tls-key-file", config.MQTT.TLSKeyFile, "Client key file for MQTT TLS.")
+	fs.String("mqtt.tls-server-name", config.MQTT.TLSServerName, "Override TLS server name for MQTT.")
+	fs.Bool("mqtt.tls-insecure-skip-verify", config.MQTT.TLSInsecureSkipVerify, "Skip MQTT TLS certificate verification.")
+	fs.Int64("poll.interval", int64(config.Poll.Interval.Seconds()), "Background polling interval in seconds.")
+	fs.Int64("poll.fresh-timeout", int64(config.Poll.FreshTimeout.Seconds()), "Maximum age in seconds for cached data served by HTTP handlers.")
 }
 
 func postLoadProcess(config *Configuration) {
-	config.Symo.Timeout *= time.Second
+	config.Symo.Timeout = normalizeDurationSeconds(config.Symo.Timeout, 5*time.Second)
 	if config.Log.Verbose {
 		config.Log.Level = "debug"
 	}
+	config.MQTT.BaseTopic = strings.Trim(config.MQTT.BaseTopic, "/")
+	config.MQTT.DiscoveryPrefix = strings.Trim(config.MQTT.DiscoveryPrefix, "/")
+	config.MQTT.DiscoveryDeviceID = strings.TrimSpace(config.MQTT.DiscoveryDeviceID)
+	config.MQTT.DiscoveryDeviceName = strings.TrimSpace(config.MQTT.DiscoveryDeviceName)
+	config.MQTT.AvailabilityTopic = strings.Trim(config.MQTT.AvailabilityTopic, "/")
+	if config.MQTT.AvailabilityTopic == "" && config.MQTT.BaseTopic != "" {
+		config.MQTT.AvailabilityTopic = config.MQTT.BaseTopic + "/availability"
+	}
+	if config.MQTT.QueueSize <= 0 {
+		config.MQTT.QueueSize = 16
+	}
+	config.MQTT.ReconnectInterval = normalizeDurationSeconds(config.MQTT.ReconnectInterval, 5*time.Second)
+	config.Poll.Interval = normalizeDurationSeconds(config.Poll.Interval, 10*time.Second)
+	config.Poll.FreshTimeout = normalizeDurationSeconds(config.Poll.FreshTimeout, 30*time.Second)
 
 	var parsedHeaders []string
 	for _, header := range config.Symo.Headers {
@@ -68,6 +103,20 @@ func postLoadProcess(config *Configuration) {
 	} else {
 		log.SetLevel(level)
 	}
+}
+
+func normalizeDurationSeconds(value, fallback time.Duration) time.Duration {
+	// CLI/env inputs are provided as plain seconds, which arrive here as sub-second
+	// raw time.Duration values (for example 9 becomes 9ns). Defaults in code are
+	// already real durations like 5*time.Second, so only sub-second positive values
+	// should be scaled by time.Second.
+	if value <= 0 {
+		return fallback
+	}
+	if value < time.Second {
+		return value * time.Second
+	}
+	return value
 }
 
 func splitHeaderStrings(rest string, headers []string) []string {
@@ -109,7 +158,9 @@ func loadConfigHierarchy(fs *flag.FlagSet, args []string, config *Configuration)
 	}
 
 	if err := koanfInstance.Unmarshal("", &config); err != nil {
+		panic(err)
 		log.WithError(err).Fatal("Could not merge defaults with settings from environment variables")
+
 	}
 }
 
