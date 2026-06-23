@@ -324,6 +324,10 @@ func parsePowerFlowMetrics(data *fronius.SymoData) {
 
 func parseInverterRealtimeData(data *fronius.SymoInverterRealtimeData) {
 	log.WithField("InverterRealtimeData", *data).Debug("Parsing data.")
+	if(data.TotalEnergyGenerated.Value == 0) {
+		log.WithField("InverterRealtimeData", *data).Error("Invalid data, TotalEnergyGenerated 0")
+		return;
+	}
 	siteRealtimeDataDcCurrentMPPT1Gauge.Set(data.DcCurrentMPPT1.Value)
 	siteRealtimeDataDcCurrentMPPT2Gauge.Set(data.DcCurrentMPPT2.Value)
 	siteRealtimeDataDcCurrentMPPT3Gauge.Set(data.DcCurrentMPPT3.Value)
