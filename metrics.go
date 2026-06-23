@@ -23,6 +23,21 @@ var (
 		Name:      "scrape_error_count",
 		Help:      "Number of scrape errors",
 	})
+	endpointLastSuccessGaugeVec = promauto.NewGaugeVec(prometheus.GaugeOpts{
+		Namespace: namespace,
+		Name:      "endpoint_last_success_timestamp_seconds",
+		Help:      "Unix timestamp of the last successful poll per endpoint",
+	}, []string{"endpoint"})
+	endpointLastErrorGaugeVec = promauto.NewGaugeVec(prometheus.GaugeOpts{
+		Namespace: namespace,
+		Name:      "endpoint_last_error_timestamp_seconds",
+		Help:      "Unix timestamp of the last failed poll per endpoint",
+	}, []string{"endpoint"})
+	endpointLastPollSuccessGaugeVec = promauto.NewGaugeVec(prometheus.GaugeOpts{
+		Namespace: namespace,
+		Name:      "endpoint_last_poll_success",
+		Help:      "Whether the last poll per endpoint succeeded (1) or failed (0)",
+	}, []string{"endpoint"})
 
 	inverterPowerGaugeVec = promauto.NewGaugeVec(prometheus.GaugeOpts{
 		Namespace: namespace,
@@ -186,6 +201,16 @@ func pollTarget(client *fronius.SymoClient, state *exporterState) {
 	scrapeDurationGauge.Set(time.Since(start).Seconds())
 }
 
+func recordEndpointSuccess(endpoint string, at time.Time) {
+	endpointLastSuccessGaugeVec.WithLabelValues(endpoint).Set(float64(at.Unix()))
+	endpointLastPollSuccessGaugeVec.WithLabelValues(endpoint).Set(1)
+}
+
+func recordEndpointError(endpoint string, at time.Time) {
+	endpointLastErrorGaugeVec.WithLabelValues(endpoint).Set(float64(at.Unix()))
+	endpointLastPollSuccessGaugeVec.WithLabelValues(endpoint).Set(0)
+}
+
 func pollPowerFlowData(client *fronius.SymoClient, state *exporterState, w *sync.WaitGroup) {
 	defer w.Done()
 	if !client.Options.PowerFlowEnabled {
@@ -194,13 +219,15 @@ func pollPowerFlowData(client *fronius.SymoClient, state *exporterState, w *sync
 
 	powerFlowData, err := client.GetPowerFlowData()
 	if err != nil {
+		at := time.Now()
 		log.WithError(err).Warn("Could not collect Symo power metrics.")
 		scrapeErrorCount.Add(1)
-		state.MarkPollingError(time.Now())
+		recordEndpointError("power-flow", at)
 		return
 	}
 
 	updatedAt := time.Now()
+	recordEndpointSuccess("power-flow", updatedAt)
 	parsePowerFlowMetrics(powerFlowData)
 	state.SetPowerFlow(powerFlowData, updatedAt)
 	mqttPub.PublishJSON("power-flow", powerFlowData)
@@ -214,13 +241,15 @@ func pollInverterRealtimeData(client *fronius.SymoClient, state *exporterState, 
 
 	powerFlowData, err := client.GetInverterRealtimeData()
 	if err != nil {
+		at := time.Now()
 		log.WithError(err).Warn("Could not collect Symo inverter realtime metrics.")
 		scrapeErrorCount.Add(1)
-		state.MarkPollingError(time.Now())
+		recordEndpointError("inverter-realtime", at)
 		return
 	}
 
 	updatedAt := time.Now()
+	recordEndpointSuccess("inverter-realtime", updatedAt)
 	parseInverterRealtimeData(powerFlowData)
 	state.SetInverterRealtime(powerFlowData, updatedAt)
 	mqttPub.PublishJSON("inverter-realtime", powerFlowData)
@@ -234,13 +263,15 @@ func pollMeterRealtimeData(client *fronius.SymoClient, state *exporterState, w *
 
 	meterData, err := client.GetMeterRealtimeData()
 	if err != nil {
+		at := time.Now()
 		log.WithError(err).Warn("Could not collect Symo meter realtime metrics.")
 		scrapeErrorCount.Add(1)
-		state.MarkPollingError(time.Now())
+		recordEndpointError("meter-realtime", at)
 		return
 	}
 
 	updatedAt := time.Now()
+	recordEndpointSuccess("meter-realtime", updatedAt)
 	parseMeterRealtimeData(meterData)
 	state.SetMeterRealtime(meterData, updatedAt)
 	mqttPub.PublishJSON("meter-realtime", meterData)
@@ -254,13 +285,15 @@ func pollArchiveData(client *fronius.SymoClient, state *exporterState, w *sync.W
 
 	archiveData, err := client.GetArchiveData()
 	if err != nil {
+		at := time.Now()
 		log.WithError(err).Warn("Could not collect Symo archive metrics.")
 		scrapeErrorCount.Add(1)
-		state.MarkPollingError(time.Now())
+		recordEndpointError("archive", at)
 		return
 	}
 
 	updatedAt := time.Now()
+	recordEndpointSuccess("archive", updatedAt)
 	parseArchiveMetrics(archiveData)
 	state.SetArchive(archiveData, updatedAt)
 	mqttPub.PublishJSON("archive", archiveData)

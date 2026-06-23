@@ -123,9 +123,20 @@ func newMQTTPublisher(config cfg.MQTTConfig, symoConfig cfg.SymoConfig) (*mqttPu
 		symoConfig:      symoConfig,
 	}
 
-	publisher.client.Connect()
+	token := publisher.client.Connect()
+	go publisher.awaitInitialConnect(token, config.Broker)
 	go publisher.run()
 	return publisher, nil
+}
+
+func (p *mqttPublisher) awaitInitialConnect(token mqtt.Token, broker string) {
+	if ok := token.WaitTimeout(10 * time.Second); !ok {
+		log.WithField("broker", broker).Warn("Timed out waiting for initial MQTT connection")
+		return
+	}
+	if err := token.Error(); err != nil {
+		log.WithError(err).WithField("broker", broker).Warn("Initial MQTT connection failed")
+	}
 }
 
 func newMQTTTLSConfig(config cfg.MQTTConfig) (*tls.Config, error) {

@@ -16,9 +16,8 @@ type exporterState struct {
 	archiveUpdatedAt   time.Time
 	inverterRealtime   *fronius.SymoInverterRealtimeData
 	inverterUpdatedAt  time.Time
-	meterRealtime      *fronius.SymoMeterRealtimeData
-	meterUpdatedAt     time.Time
-	lastPollingError   time.Time
+	meterRealtime  *fronius.SymoMeterRealtimeData
+	meterUpdatedAt time.Time
 }
 
 func newExporterState() *exporterState {
@@ -51,12 +50,6 @@ func (s *exporterState) SetMeterRealtime(data *fronius.SymoMeterRealtimeData, up
 	defer s.mu.Unlock()
 	s.meterRealtime = data
 	s.meterUpdatedAt = updatedAt
-}
-
-func (s *exporterState) MarkPollingError(at time.Time) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.lastPollingError = at
 }
 
 func (s *exporterState) IsFresh(options fronius.ClientOptions, maxAge time.Duration) bool {

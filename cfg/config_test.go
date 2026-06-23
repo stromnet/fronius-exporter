@@ -179,7 +179,7 @@ func TestParseConfig(t *testing.T) {
 				"MQTT__BASE_TOPIC":                "fronius/site",
 				"MQTT__CLIENT_ID":                 "client-1",
 				"MQTT__QUEUE_SIZE":                "32",
-				"MQTT__RECONNECT_INTERVAL":        "9",
+				"MQTT__RECONNECT_INTERVAL":        "9s",
 				"MQTT__AVAILABILITY_TOPIC":        "fronius/site/status",
 				"MQTT__AVAILABILITY_PAYLOAD_UP":   "up",
 				"MQTT__AVAILABILITY_PAYLOAD_DOWN": "down",

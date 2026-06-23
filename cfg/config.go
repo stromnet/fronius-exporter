@@ -70,7 +70,7 @@ func setupCliFlags(version string, fs *flag.FlagSet, config *Configuration) {
 }
 
 func postLoadProcess(config *Configuration) {
-	config.Symo.Timeout *= time.Second
+	config.Symo.Timeout = normalizeDurationSeconds(config.Symo.Timeout, 5*time.Second)
 	if config.Log.Verbose {
 		config.Log.Level = "debug"
 	}
@@ -82,21 +82,12 @@ func postLoadProcess(config *Configuration) {
 	if config.MQTT.AvailabilityTopic == "" && config.MQTT.BaseTopic != "" {
 		config.MQTT.AvailabilityTopic = config.MQTT.BaseTopic + "/availability"
 	}
-	config.MQTT.ReconnectInterval *= time.Second
 	if config.MQTT.QueueSize <= 0 {
 		config.MQTT.QueueSize = 16
 	}
-	if config.MQTT.ReconnectInterval <= 0 {
-		config.MQTT.ReconnectInterval = 5 * time.Second
-	}
-	config.Poll.Interval *= time.Second
-	config.Poll.FreshTimeout *= time.Second
-	if config.Poll.Interval <= 0 {
-		config.Poll.Interval = 10 * time.Second
-	}
-	if config.Poll.FreshTimeout <= 0 {
-		config.Poll.FreshTimeout = 30 * time.Second
-	}
+	config.MQTT.ReconnectInterval = normalizeDurationSeconds(config.MQTT.ReconnectInterval, 5*time.Second)
+	config.Poll.Interval = normalizeDurationSeconds(config.Poll.Interval, 10*time.Second)
+	config.Poll.FreshTimeout = normalizeDurationSeconds(config.Poll.FreshTimeout, 30*time.Second)
 
 	var parsedHeaders []string
 	for _, header := range config.Symo.Headers {
@@ -112,6 +103,20 @@ func postLoadProcess(config *Configuration) {
 	} else {
 		log.SetLevel(level)
 	}
+}
+
+func normalizeDurationSeconds(value, fallback time.Duration) time.Duration {
+	// CLI/env inputs are provided as plain seconds, which arrive here as sub-second
+	// raw time.Duration values (for example 9 becomes 9ns). Defaults in code are
+	// already real durations like 5*time.Second, so only sub-second positive values
+	// should be scaled by time.Second.
+	if value <= 0 {
+		return fallback
+	}
+	if value < time.Second {
+		return value * time.Second
+	}
+	return value
 }
 
 func splitHeaderStrings(rest string, headers []string) []string {
@@ -153,7 +158,9 @@ func loadConfigHierarchy(fs *flag.FlagSet, args []string, config *Configuration)
 	}
 
 	if err := koanfInstance.Unmarshal("", &config); err != nil {
+		panic(err)
 		log.WithError(err).Fatal("Could not merge defaults with settings from environment variables")
+
 	}
 }
 
